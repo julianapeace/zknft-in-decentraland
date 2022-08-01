@@ -1,18 +1,54 @@
 import * as EthereumController from "@decentraland/EthereumController"
+import { getProvider, Provider } from "@decentraland/web3-provider";
+import * as eth from "eth-connect";
 import * as crypto from "@dcl/crypto-scene-utils"
 import { Door } from "./door"
 import * as ui from "@dcl/ui-scene-utils"
 import { Sound } from "./sound"
+import * as config from "./constants/config"
+import * as abi from "./constants/abi"
 
-let userAddress: string
-const contractAddress = "0xef3d2fd93126bbee4f0cd6a8beb16b2cfd1e0056" // (JULIE) contract
+let zknft_contract_address = config.contractAddress
+let zknft_abi = abi.abi
+
+// On load
+executeTask(async () => {
+  try {
+    let userAddress: string = await EthereumController.getUserAccount()
+    log("jm User Address: ", userAddress)
+
+    const provider = await getProvider();
+
+    const requestManager: any = new eth.RequestManager(provider);
+
+    let contract: any = await new eth.ContractFactory(requestManager, zknft_abi.abi).at(zknft_contract_address);
+    log('jm contract instance: ', contract)
+    let params: any = {
+          proof: config.proof,
+          nullifierHash: config.nullifierHash,
+          entityId: config.entityId,
+          challenge: config.challenge
+        }
+    const result = await contract.verifyIdentityChallenge(
+      params.challenge,
+      params.nullifierHash,
+      params.entityId,
+      params.proof,
+    )
+    log('jm result::: ', result)
+
+  } catch (error: any) {
+    log('jm error', error.toString())
+  }
+})
+
 let zkNFTUI: ui.FillInPrompt
 
 zkNFTUI = new ui.FillInPrompt(
   'Must own an NFT to enter',
   (e: string) => {
-    log("E: ", e)
-    // checkTokens()
+    log("jm E: ", e)
+    zkNFTcheck(e)
   },
   'Send',
   'Enter commitment hash here',
@@ -24,7 +60,7 @@ Input.instance.subscribe(
   'BUTTON_DOWN',
   ActionButton.PRIMARY,
   false,
-  (e) => {
+  (e: any) => {
     if (zkNFTUI) {
       if (!zkNFTUI.background.visible) {
         zkNFTUI.show()
@@ -42,38 +78,6 @@ const accessDeniedSound = new Sound(new AudioClip("sounds/accessDenied.mp3"), fa
 const jazzMuffledSound = new Sound(new AudioClip("sounds/jazzMuffled.mp3"), true, true)
 const jazzSound = new Sound(new AudioClip("sounds/jazz.mp3"), true, true)
 jazzSound.getComponent(AudioSource).volume = 0.0
-
-
-// Models
-// const temple = new GLTFShape('models/temple.glb')
-//
-// const zenTemple = new Entity()
-//
-// zenTemple.addComponent(temple)
-// zenTemple.addComponent(new Transform({ position: new Vector3(10, 0, 10) }))
-// zenTemple.getComponent(Transform).scale.setAll(2)
-// zenTemple.getComponent(Transform).rotate(Vector3.Up(), 180)
-//
-//
-// zenTemple.addComponent(
-//   new OnPointerDown(
-//     () => {
-//       prettySound.getComponent(AudioSource).playOnce()
-//     },
-//     {
-//       button: ActionButton.PRIMARY,
-//       hoverText: "Click here Julie",
-//       showFeedback: true,
-//     }
-//   )
-// )
-//
-// engine.addEntity(zenTemple)
-
-
-
-
-
 
 
 // Base
@@ -114,15 +118,13 @@ let noSign = new ui.CenterImage("images/no-sign.png", 1, true, 0, 20, 128, 128, 
   sourceTop: 0,
 })
 
-// On load
-executeTask(async () => {
-  try {
-    userAddress = await EthereumController.getUserAccount()
-    log("User Address: ", userAddress)
-  } catch (error) {
-    log(error.toString())
-  }
-})
+async function zkNFTcheck(e: string) {
+  // check if string is valid by calling zknft contract
+  log('jm ui input', e)
+  log('jm crypto', crypto)
+  let zknftContract = await crypto.contract.getContract(zknft_contract_address, zknft_abi)
+  log('jm zknftContract', zknftContract)
+}
 
 // Check player's wallet to see if they're holding any tokens relating to that contract address
 async function checkTokens() {

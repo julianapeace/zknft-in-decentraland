@@ -14,7 +14,7 @@ What is this app doing?
 Scenario 1: User proves they own an NFT anonymously using zk-nft
 1. user walks up to a door
 2. user clicks on the door
-3. it triggers a popup with "what is the password"
+3. it triggers a popup with an input for the commitment string
 4. user enters the zk commitment string
 5. if it is valid, door opens.
 
