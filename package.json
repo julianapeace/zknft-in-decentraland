@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/julianapeace/zknft-in-decentraland#readme",
   "devDependencies": {
+    "@types/node": "^18.6.3",
     "decentraland-ecs": "latest"
   },
   "dependencies": {

@@ -10,32 +10,18 @@ import * as abi from "./constants/abi"
 
 let zknft_contract_address = config.contractAddress
 let zknft_abi = abi.abi
+let contract: any
 
 // On load
 executeTask(async () => {
   try {
-    let userAddress: string = await EthereumController.getUserAccount()
+    let userAddress: string = await EthereumController.getUserAccount() // sanity check
     log("jm User Address: ", userAddress)
 
     const provider = await getProvider();
-
     const requestManager: any = new eth.RequestManager(provider);
-
-    let contract: any = await new eth.ContractFactory(requestManager, zknft_abi.abi).at(zknft_contract_address);
+    contract = await new eth.ContractFactory(requestManager, zknft_abi.abi).at(zknft_contract_address);
     log('jm contract instance: ', contract)
-    let params: any = {
-          proof: config.proof,
-          nullifierHash: config.nullifierHash,
-          entityId: config.entityId,
-          challenge: config.challenge
-        }
-    const result = await contract.verifyIdentityChallenge(
-      params.challenge,
-      params.nullifierHash,
-      params.entityId,
-      params.proof,
-    )
-    log('jm result::: ', result)
 
   } catch (error: any) {
     log('jm error', error.toString())
@@ -46,9 +32,8 @@ let zkNFTUI: ui.FillInPrompt
 
 zkNFTUI = new ui.FillInPrompt(
   'Must own an NFT to enter',
-  (e: string) => {
-    log("jm E: ", e)
-    zkNFTcheck(e)
+  (value: string) => {
+    zkNFTcheck(value)
   },
   'Send',
   'Enter commitment hash here',
@@ -60,7 +45,7 @@ Input.instance.subscribe(
   'BUTTON_DOWN',
   ActionButton.PRIMARY,
   false,
-  (e: any) => {
+  () => {
     if (zkNFTUI) {
       if (!zkNFTUI.background.visible) {
         zkNFTUI.show()
@@ -110,7 +95,6 @@ door.addComponent(
 )
 
 
-// UI
 let noSign = new ui.CenterImage("images/no-sign.png", 1, true, 0, 20, 128, 128, {
   sourceHeight: 512,
   sourceWidth: 512,
@@ -118,12 +102,36 @@ let noSign = new ui.CenterImage("images/no-sign.png", 1, true, 0, 20, 128, 128, 
   sourceTop: 0,
 })
 
-async function zkNFTcheck(e: string) {
-  // check if string is valid by calling zknft contract
-  log('jm ui input', e)
-  log('jm crypto', crypto)
-  let zknftContract = await crypto.contract.getContract(zknft_contract_address, zknft_abi)
-  log('jm zknftContract', zknftContract)
+function hex_to_ascii(userInput: string) {
+	let str = '';
+	for (let n = 0; n < userInput.length; n += 2) {
+		str += String.fromCharCode(parseInt(userInput.substr(n, 2), 16));
+	}
+	return str;
+ }
+
+async function zkNFTcheck(userInput: any) {
+  const decoded = hex_to_ascii(userInput)
+  const params = JSON.parse(decoded)
+  log('jm params', params)
+
+
+  const result = await contract.verifyIdentityChallenge(
+    params.challenge,
+    params.nullifierHash,
+    params.entityId,
+    params.proof,
+  )
+
+  if (result) {
+    door.playDoorOpen()
+    openDoorSound.getComponent(AudioSource).playOnce()
+    jazzSound.getComponent(AudioSource).volume = 1.0
+  } else {
+    noSign.show(1)
+    accessDeniedSound.getComponent(AudioSource).playOnce()
+    jazzMuffledSound.getComponent(AudioSource).volume = 1.0
+  }
 }
 
 // Check player's wallet to see if they're holding any tokens relating to that contract address
